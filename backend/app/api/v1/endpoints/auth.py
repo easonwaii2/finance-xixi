@@ -32,10 +32,11 @@ def login(
             detail="Inactive user"
         )
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = security.create_access_token(
+        {"sub": str(user.id)}, expires_delta=access_token_expires
+    )
     return {
-        "access_token": security.create_access_token(
-            user.id, expires_delta=access_token_expires
-        ),
+        "access_token": token,
         "token_type": "bearer",
     }
 
@@ -53,3 +54,9 @@ def create_user(
         )
     user = crud_user.create(db, obj_in=user_in)
     return user
+
+@router.get("/me", response_model=User)
+def read_current_user(
+    current_user: User = Depends(deps.get_current_active_user),
+) -> Any:
+    return current_user
