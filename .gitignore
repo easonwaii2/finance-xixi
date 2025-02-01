@@ -55,3 +55,13 @@ yarn-error.log*
 # System Files
 .DS_Store
 Thumbs.db
+# Security-sensitive files
+backend/app/services/notification_service.py
+backend/app/core/config.py
+backend/.env
+frontend/.env.local
+# Security-sensitive files
+backend/app/services/notification_service.py
+backend/app/core/config.py
+backend/.env
+frontend/.env.local
