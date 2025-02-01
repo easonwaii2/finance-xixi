@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { useToast } from "../ui/use-toast";
 import api from "../../services/api";
+import EnterpriseForm from "./EnterpriseForm";
 
 interface Enterprise {
   id: number;
@@ -12,64 +16,170 @@ interface Enterprise {
   business_scope: string;
   registered_capital: number;
   established_date: string;
+  annual_revenue: number;
+  employee_count: number;
+  credit_score: number;
+  guarantee_type: string;
+  guarantee_amount: number;
 }
 
 export default function EnterpriseList() {
+  const { toast } = useToast();
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingEnterprise, setEditingEnterprise] = useState<Enterprise | null>(null);
+
+  const fetchEnterprises = async () => {
+    try {
+      const response = await api.get("/enterprises");
+      setEnterprises(response.data);
+    } catch (error) {
+      console.error("Failed to fetch enterprises:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load enterprises",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
-    const fetchEnterprises = async () => {
-      try {
-        const response = await api.get("/enterprises");
-        setEnterprises(response.data);
-      } catch (error) {
-        console.error("Failed to fetch enterprises:", error);
-      }
-    };
     fetchEnterprises();
   }, []);
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this enterprise?")) {
+      return;
+    }
+
+    try {
+      await api.delete(`/enterprises/${id}`);
+      toast({
+        title: "Success",
+        description: "Enterprise deleted successfully",
+      });
+      fetchEnterprises();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete enterprise",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEdit = (enterprise: Enterprise) => {
+    setEditingEnterprise(enterprise);
+    setShowForm(true);
+  };
+
+  const handleFormSubmit = async (data: Omit<Enterprise, "id">) => {
+    try {
+      if (editingEnterprise) {
+        await api.put(`/enterprises/${editingEnterprise.id}`, data);
+      } else {
+        await api.post("/enterprises", data);
+      }
+      setShowForm(false);
+      setEditingEnterprise(null);
+      fetchEnterprises();
+    } catch (error) {
+      console.error("Failed to save enterprise:", error);
+      throw error;
+    }
+  };
+
+  if (showForm) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">
+            {editingEnterprise ? "Edit Enterprise" : "Add Enterprise"}
+          </h2>
+          <Button variant="outline" onClick={() => {
+            setShowForm(false);
+            setEditingEnterprise(null);
+          }}>
+            Cancel
+          </Button>
+        </div>
+        <EnterpriseForm
+          initialData={editingEnterprise || undefined}
+          onSubmit={handleFormSubmit}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Enterprises</h2>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        <Button onClick={() => setShowForm(true)}>
           Add Enterprise
-        </button>
+        </Button>
       </div>
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registration</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capital</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {enterprises.map((enterprise) => (
-              <tr key={enterprise.id}>
-                <td className="px-6 py-4">
-                  <div className="text-sm font-medium text-gray-900">{enterprise.name}</div>
-                  <div className="text-sm text-gray-500">{enterprise.legal_representative}</div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{enterprise.registration_number}</td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900">{enterprise.contact_phone}</div>
-                  <div className="text-sm text-gray-500">{enterprise.contact_email}</div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{enterprise.registered_capital}</td>
-                <td className="px-6 py-4 text-sm font-medium">
-                  <button className="text-blue-600 hover:text-blue-900 mr-4">Edit</button>
-                  <button className="text-red-600 hover:text-red-900">Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Enterprise List</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="py-3 px-4 text-left font-medium">Name</th>
+                  <th className="py-3 px-4 text-left font-medium">Registration</th>
+                  <th className="py-3 px-4 text-left font-medium">Contact</th>
+                  <th className="py-3 px-4 text-left font-medium">Capital</th>
+                  <th className="py-3 px-4 text-left font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {enterprises.map((enterprise) => (
+                  <tr key={enterprise.id} className="border-b">
+                    <td className="py-3 px-4">
+                      <div className="font-medium">{enterprise.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {enterprise.legal_representative}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-sm">
+                      {enterprise.registration_number}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="text-sm">{enterprise.contact_phone}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {enterprise.contact_email}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-sm">
+                      {enterprise.registered_capital.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mr-2"
+                        onClick={() => handleEdit(enterprise)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(enterprise.id)}
+                      >
+                        Delete
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
